@@ -1,25 +1,60 @@
-# Increment 2 - Firebase Runtime Bootstrap
+# Increment 2 - Firebase Runtime Bootstrap (Explained)
 
-## Goal
+## TL;DR
 
-Set up the smallest runtime foundation for Firebase in the frontend:
+In this increment, we connected the app to Firebase at runtime with a safe baseline:
 
-1. Install the Firebase Web SDK (approved dependency).
-2. Add a Firebase client singleton.
-3. Add an anonymous auth helper.
+1. Install Firebase SDK.
+2. Create one shared Firebase client (`app`, `auth`, `db`).
+3. Add `ensureAnonymousUser()` helper so auth call sites stay simple.
 
-No UI wiring yet.
-No game logic yet.
+No UI wiring yet. No game logic yet.
 
 ---
 
-## Starting Point
+## ELI5 Version
 
-From Increment 1, we already had environment validation in:
+Imagine your app is a new school building:
+
+1. `config.ts` is the address card: it says where the school is.
+2. `client.ts` is unlocking the front door once:
+   - if door is already unlocked, do not unlock again
+   - if locked, unlock it
+3. `auth.ts` is the "guest pass" desk:
+   - if visitor already has a pass, let them in
+   - if not, give anonymous pass
+
+Why this matters:
+if we try to unlock the same door again and again, Firebase can throw duplicate-app errors.
+
+---
+
+## Goal
+
+Set the smallest runtime Firebase foundation in the frontend:
+
+1. Add official Firebase SDK dependency.
+2. Initialize Firebase app once (singleton).
+3. Expose ready-to-use `auth` and `db`.
+4. Add a single helper to ensure anonymous auth.
+
+---
+
+## Non-Goals (Intentionally Not Done Yet)
+
+1. No UI auth flow.
+2. No Firestore reads/writes from pages/components.
+3. No Cloud Functions wiring in this increment.
+
+---
+
+## Starting Point from Increment 1
+
+We already had env validation in:
 
 - `src/lib/firebase/config.ts`
 
-That file exposes `getFirebaseWebConfig()` and throws if required env vars are missing.
+That file provides `getFirebaseWebConfig()` and throws early if required env vars are missing.
 
 ---
 
@@ -34,12 +69,12 @@ Files changed:
 
 What changed:
 
-1. Added `firebase` dependency to `package.json`.
-2. Updated lockfile for deterministic installs.
+1. Added `firebase` package.
+2. Lockfile updated for reproducible installs.
 
 Why:
-
-`firebase/app`, `firebase/auth`, and `firebase/firestore` imports require the official SDK package.
+we need official SDK modules for runtime clients:
+`firebase/app`, `firebase/auth`, `firebase/firestore`.
 
 ---
 
@@ -51,24 +86,19 @@ File changed:
 
 What this file does:
 
-1. Imports Firebase SDK modules:
-   - `initializeApp`, `getApps`, `getApp`
-   - `getAuth`
-   - `getFirestore`
-2. Pulls validated config from Increment 1 via `getFirebaseWebConfig()`.
-3. Initializes app exactly once (singleton pattern):
-   - reuse existing app if already initialized
-   - otherwise initialize new app
+1. Imports Firebase init and service constructors.
+2. Reads validated config from `getFirebaseWebConfig()`.
+3. Initializes app exactly once:
+   - `getApp()` if already initialized
+   - `initializeApp()` if not
 4. Exports:
    - `firebaseApp`
    - `auth`
    - `db`
-5. Adds TODO for future Functions client wiring.
+5. Includes TODO marker for future Functions client.
 
-Why singleton matters:
-
-If app init runs multiple times in hot reload or multi-module imports, Firebase throws duplicate-app errors.
-Using `getApps().length > 0 ? getApp() : initializeApp(...)` prevents that.
+Why this design:
+in Next.js dev mode with hot reload, modules can re-run. Singleton init prevents duplicate Firebase app creation.
 
 ---
 
@@ -81,107 +111,115 @@ File changed:
 What this file does:
 
 1. Imports `signInAnonymously`.
-2. Reuses exported `auth` from `client.ts`.
+2. Reuses shared `auth` instance from `client.ts`.
 3. Exposes `ensureAnonymousUser()`:
-   - returns current user if already signed in
-   - otherwise performs anonymous sign-in and returns created user
-4. Adds TODO for a future auth listener utility.
+   - returns `auth.currentUser` if already signed in
+   - otherwise signs in anonymously and returns created user
+4. Adds TODO marker for future auth listener helper.
 
 Why this helper exists:
-
-We want auth call sites to stay simple and consistent.
-Instead of repeating sign-in logic in pages/components, they can call one function.
+without it, each caller would duplicate "if user exists, else sign in" logic. One helper keeps behavior consistent.
 
 ---
 
-## Execution Order (Runtime)
+## Runtime Execution Order (Step by Step)
 
-When a future component calls `ensureAnonymousUser()`:
+When some future component calls `ensureAnonymousUser()`:
 
-1. `auth.ts` imports `auth` from `client.ts`.
-2. `client.ts` evaluates:
-   - gets config from `getFirebaseWebConfig()` (Increment 1)
-   - initializes/reuses Firebase app singleton
-   - creates `auth` + `db` instances
-3. `ensureAnonymousUser()` runs:
-   - returns existing `auth.currentUser` OR
-   - calls `signInAnonymously(auth)` and returns credential user.
+1. `auth.ts` loads and imports `auth` from `client.ts`.
+2. `client.ts` runs:
+   - pulls config from `config.ts`
+   - initializes or reuses Firebase app
+   - creates `auth` and `db`
+3. `ensureAnonymousUser()` checks `auth.currentUser`:
+   - user exists: return immediately
+   - user missing: call `signInAnonymously(auth)`, return new user
 
-So the runtime chain is:
+Dependency chain:
 
 `config.ts` -> `client.ts` -> `auth.ts`
 
 ---
 
-## Manual Test Steps (Exact)
+## Mental Model (Quick)
 
-## A) Dependency check
+1. `config.ts` = "Do we have valid keys?"
+2. `client.ts` = "Create shared Firebase runtime clients once."
+3. `auth.ts` = "Guarantee we have a signed-in user (anonymous for now)."
 
-1. Run:
-   - `npm ls firebase`
-2. Expected:
-   - prints installed `firebase` version
-   - no "missing" errors
+---
 
-## B) Static checks
+## Manual Test Steps
 
-1. Run:
-   - `npm run lint`
-2. Expected:
-   - lint passes with no errors
+## A) Confirm dependency
 
-## C) Basic runtime sanity
+1. Run: `npm ls firebase`
+2. Expect:
+   - installed `firebase` version shown
+   - no missing dependency errors
 
-1. Run:
-   - `npm run dev`
-2. Open:
-   - `http://localhost:3000`
-3. Expected:
+## B) Lint check
+
+1. Run: `npm run lint`
+2. Expect:
+   - lint passes
+
+## C) Dev runtime sanity
+
+1. Run: `npm run dev`
+2. Open: `http://localhost:3000`
+3. Expect:
    - app compiles and loads
-   - no Firebase import/compile crashes
+   - no Firebase import/init crash
 
 Note:
+no visible auth behavior in UI yet, because `ensureAnonymousUser()` is not wired to a component in this increment.
 
-There is no visible auth behavior yet in UI because `ensureAnonymousUser()` is not wired to a component in this increment.
+---
+
+## Troubleshooting
+
+1. Error about missing Firebase env vars:
+   - check `.env.local` keys from Increment 1
+2. Duplicate Firebase app error:
+   - verify singleton pattern in `client.ts`
+3. Anonymous auth fails:
+   - verify Anonymous provider is enabled in Firebase Console Auth settings
 
 ---
 
 ## What To Read First
 
-Read in this exact order:
+Read in this order:
 
 1. `src/lib/firebase/config.ts`
 2. `src/lib/firebase/client.ts`
 3. `src/lib/firebase/auth.ts`
 
-This order matches how execution flows at runtime.
+This matches runtime execution order.
 
 ---
 
 ## Design Decisions
 
 1. Keep increment small and reversible.
-2. Keep logic runtime-safe before UI integration.
-3. Add TODO markers where follow-up work is expected.
-4. Avoid adding extra abstractions until first caller is implemented.
+2. Build runtime safety before UI integration.
+3. Keep responsibilities separated per file.
+4. Add TODOs only where follow-up is expected.
 
 ---
 
 ## TODOs for Next Increments
 
-1. TODO: Wire `ensureAnonymousUser()` into app boot (likely via client bootstrap component).
-2. TODO: Add `useAuthUser` hook for reactive auth state in React.
-3. TODO: Add Firebase Functions client only when callable functions are introduced.
-4. TODO: Add Firestore subscription helper only when a first room document shape is defined.
+1. Wire `ensureAnonymousUser()` into app bootstrap (client-side entry).
+2. Add reactive auth state helper (`useAuthUser` or similar).
+3. Add Firebase Functions client only when first callable function is introduced.
+4. Add Firestore subscription helper only after first room document shape is defined.
 
 ---
 
 ## SWE Takeaways
 
-1. Separate config validation from runtime initialization.
-2. Introduce one responsibility per file:
-   - config
-   - runtime clients
-   - auth helper
-3. Validate early with lint to keep small increments reliable.
-4. Treat dependency additions as explicit design decisions with approval.
+1. Validate config early; initialize runtime once.
+2. Small helpers reduce duplication and edge-case drift.
+3. Keep increments narrow so rollback and review stay easy.
