@@ -205,8 +205,8 @@ src/
 | 4. Assign prompts | Cloud Function | Picks imposter, writes private prompts to subcollection |
 | 5. Set phase → `answering` | Cloud Function | Updates room `phase`, sets `deadline` timestamp |
 | 6. Submit answer | Player (client) | Writes to `answers/{round}_{playerId}` (once, validated by rules) |
-| 7. Deadline reached | Cloud Function (scheduled) | Sets phase → `revealed` |
-| 8. Reveal answers | Automatic | Client reads all answers for the current round |
+| 7. Answering ends | Cloud Function (scheduled or callable) | Transitions phase → `revealed`, publishes round `publicPrompt` |
+| 8. Reveal answers + shared prompt | Automatic | Clients read all answers and `round.publicPrompt` for the current round |
 | 9. Vote | Players (client) | Each player writes to `votes/{round}_{voterId}` (once, validated by rules) |
 | 10. Calculate scores | Cloud Function `scoreRound` | Tallies votes, updates player scores, reveals imposter identity |
 | 11. Next round or end | Host (client) | Calls `startRound` again or ends game |
@@ -232,7 +232,7 @@ lobby ──▶ prompting ──▶ answering ──▶ revealed ──▶ votin
 |---|---|---|---|
 | `lobby` | `prompting` | Host calls `startRound` | ≥ 3 players in room |
 | `prompting` | `answering` | Cloud Function | All prompts written to private subcollection |
-| `answering` | `revealed` | Cloud Function | Deadline expired OR all players submitted |
+| `answering` | `revealed` | Cloud Function | Deadline expired OR all players submitted; transition also publishes `round.publicPrompt` |
 | `revealed` | `voting` | Host calls `advancePhase` | All answers visible |
 | `voting` | `scoring` | Cloud Function | All votes submitted OR voting deadline expired |
 | `scoring` | `lobby` | Host calls `startRound` | — |
@@ -255,6 +255,7 @@ All types live in `src/lib/types.ts` and are the canonical source of truth.
 | Players in a **subcollection**, not a map on the room doc | Room doc stays small and stable. Player joins and score updates don't trigger a room snapshot for all clients. Reduces concurrency conflicts and write fan-out. |
 | Answers and votes keyed by **round number** | Doc IDs are `{roundNumber}_{playerId}` — players can answer once per round across multiple rounds. A flat `answers/{playerId}` path would break after Round 1 because the doc already exists. |
 | No `isImposter` field in prompt docs | The imposter can already infer their role from their distinct question. Storing `isImposter: true` increases the blast radius if prompt docs ever leak. Imposter identity stays server-side until scoring. |
+| Shared prompt revealed only after answers | `round.publicPrompt` stays `null` during `prompting`/`answering`, then Cloud Function publishes it on `answering` → `revealed` so voting context is shared without leaking early. |
 | Imposter identity revealed only at scoring | Cloud Function writes `imposterId` to the room doc only when transitioning to `scoring`. Before that, it exists only in a server-only `secrets` subcollection that clients cannot read. |
 
 ## Firestore Document: `rooms/{roomCode}`
@@ -319,6 +320,7 @@ type RoundMeta = {
   roundNumber: number;
   startedAt: Timestamp;
   deadline: Timestamp;          // Server-calculated end time for current phase
+  publicPrompt: string | null;  // Null until `revealed`; then shown to everyone
   totalAnswers: number;         // Incremented as answers arrive (no content leaked)
   totalVotes: number;           // Incremented as votes arrive
 };
@@ -371,6 +373,7 @@ Clients cannot read or write this. Cloud Functions use Admin SDK to access it.
 ```ts
 type RoundSecret = {
   imposterId: string;           // Who was assigned the imposter question
+  generalQuestion: string;      // Published to room.round.publicPrompt at `revealed`
   roundNumber: number;
 };
 ```
@@ -396,12 +399,12 @@ Prompt assignment is **never done on the client**. The flow is:
 3. Cloud Function:
    - Selects imposter randomly
    - Writes each player's prompt to `rooms/{roomCode}/prompts/{playerId}` — all prompt docs look structurally identical (just `question` + `roundNumber`, no `isImposter` flag)
-   - Stores imposter identity in `rooms/{roomCode}/secrets/round_{n}` (client-inaccessible)
+   - Stores imposter identity and `generalQuestion` in `rooms/{roomCode}/secrets/round_{n}` (client-inaccessible)
    - Sets room phase to `answering`
 4. Each client subscribes to `rooms/{roomCode}/prompts/{myUid}`
 5. Firestore security rules ensure `playerId === request.auth.uid`
 
-**Result:** Even if a player inspects every network request, they only ever receive their own prompt document. The imposter's identity is not stored anywhere the client can read until the `scoring` phase, when the Cloud Function copies `imposterId` from the secrets doc to the room doc.
+**Result:** Even if a player inspects every network request, they only ever receive their own prompt document during answering. The shared prompt is published to `round.publicPrompt` only at `revealed`, and imposter identity is still hidden until `scoring`.
 
 ### Why no `isImposter` field?
 
@@ -601,9 +604,10 @@ exports.startRound = onCall(async (request) => {
       });
     }
 
-    // Store imposter identity server-side only
+    // Store imposter identity + general question server-side only
     tx.set(db.doc(`rooms/${roomCode}/secrets/round_${nextRound}`), {
       imposterId,
+      generalQuestion,
       roundNumber: nextRound,
     });
 
@@ -617,6 +621,7 @@ exports.startRound = onCall(async (request) => {
         deadline: Timestamp.fromMillis(
           Date.now() + room.settings.answerTimeLimitSec * 1000
         ),
+        publicPrompt: null,
         totalAnswers: 0,
         totalVotes: 0,
       },
@@ -784,6 +789,7 @@ RoomProvider (context: room state, players, auth)
         │     ├── CountdownTimer
         │     └── SubmittedOverlay
         ├── RevealedView
+        │     ├── SharedPromptBanner
         │     ├── AnswerGrid
         │     └── AdvanceButton (host only)
         ├── VotingView
