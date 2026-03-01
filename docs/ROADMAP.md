@@ -62,7 +62,7 @@
 
 ---
 
-## ⬜ Increment 3 — Auth Wiring
+## ✅ Increment 3 — Auth Wiring
 
 **Branch:** `wip/inc3-auth-wiring`
 
@@ -80,7 +80,7 @@
 
 ---
 
-## ⬜ Increment 4 — Types + Prompt Bank
+## ✅ Increment 4 — Types + Prompt Bank
 
 **Branch:** `wip/inc4-types`
 
@@ -97,21 +97,32 @@
 
 ---
 
-## ⬜ Increment 5 — Firebase Project Init + Emulator
+## ✅ Increment 5 — Firebase Project Init + Emulator
 
 **Branch:** `wip/inc5-firebase-init`
 
-**Files changed (≤ 3):**
+**Files changed (actual):**
 - `firebase.json`
 - `.firebaserc`
-- `functions/src/index.ts` (empty placeholder — exports `{}`)
+- `firestore.rules`
+- `functions/package.json`
+- `functions/index.js`
+- `functions/package-lock.json`
+- `src/lib/firebase/client.ts`
+- `.env.local` (local env, ignored by git)
+
+**Scope note:** This increment exceeded the normal 3-file rule because emulator boot failures required iterative infra debugging and local/runtime alignment fixes.
 
 **What it does:**
 - Runs `firebase init` (Firestore, Functions with TypeScript, Emulators)
 - Configures emulators for Auth, Firestore, Functions
-- Adds `functions` package with TypeScript config
+- Fixes Functions runtime detection (`Could not detect runtime`) by adding Functions package metadata + entrypoint
+- Adds explicit Firestore emulator rules mapping
+- Switches default project to local-only `demo-plottwist`
+- Wires client Firebase runtime to local Auth/Firestore emulators in dev/demo mode
+- Installs required Functions dependencies (`firebase-functions`, `firebase-admin`)
 
-**Testable outcome:** `firebase emulators:start` runs cleanly. All three emulator UIs are accessible.
+**Testable outcome:** `firebase emulators:start --only auth,firestore,functions` starts, and Functions logs `Loaded functions definitions from source: .`
 
 > **Why before any UI:** Every future increment that tests against Firebase must have a local emulator target. Without this, every test run burns real quota and you can't reset state.
 

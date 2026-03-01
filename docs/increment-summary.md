@@ -2,24 +2,25 @@
 
 ## TL;DR
 
-We moved from project setup and architecture cleanup into three concrete Firebase/auth increments:
+We now have five completed increments in sequence:
 
 1. Increment 1: fail-fast Firebase env config.
-2. Increment 2: Firebase runtime bootstrap (`app`, `auth`, `db`) + `ensureAnonymousUser()`.
+2. Increment 2: Firebase runtime bootstrap (`app`, `auth`, `db`) + anonymous auth helper.
 3. Increment 3: app-level auth wiring (`AuthBootstrap`) + `useAuthUser()` hook.
-
-We also documented a key Next.js env-var lesson (static vs dynamic env access in client-reachable code).
+4. Increment 4: canonical game data types + initial prompt bank.
+5. Increment 5: local-only Firebase emulator foundation (Auth/Firestore/Functions) with client emulator routing.
 
 ---
 
 ## ELI5
 
-Think of building a party-game app like opening a clubhouse:
+Think of building a party-game clubhouse:
 
-1. Increment 1 put a checklist on the door: "Do we have all required keys?"  
-2. Increment 2 installed the lock system and a guest-pass machine.  
-3. Increment 3 placed a staff member at the entrance so every visitor gets a pass automatically, and a status board to show who is signed in.  
-4. The lesson learned: when printing instructions for the browser, you must use exact env names, not "look up by variable name" tricks.
+1. Increment 1 put a checklist at the door so missing keys are caught immediately.
+2. Increment 2 installed the core lock/auth/database system.
+3. Increment 3 put a receptionist at the entrance so every visitor gets a guest badge.
+4. Increment 4 wrote the official rulebook and prepared question cards.
+5. Increment 5 built a full practice city (`demo-plottwist`) so all testing stays local and never accidentally hits the real city.
 
 ---
 
@@ -27,9 +28,8 @@ Think of building a party-game app like opening a clubhouse:
 
 ## 0) Documentation foundation work
 
-1. Improved architecture docs structure and roadmap clarity.
-2. Added/updated game-flow details (including reveal-phase clarification work in progress).
-3. Kept architecture/roadmap as the source of truth for incremental execution.
+1. Tightened architecture/roadmap docs and kept them as execution source of truth.
+2. Captured a Next.js env-var lesson for client-safe env access.
 
 ## 1) Increment 1 - Config Foundation
 
@@ -40,12 +40,12 @@ Primary file:
 Implemented:
 
 1. Required Firebase env key typing.
-2. Fail-fast `getRequiredEnv(...)` validation.
-3. `getFirebaseWebConfig()` for centralized web config output.
+2. Fail-fast env validation with explicit missing-key errors.
+3. Centralized `getFirebaseWebConfig()` output.
 
 Outcome:
 
-- Missing required key throws immediately with explicit key name.
+- App fails early and clearly when required Firebase config is missing.
 
 ## 2) Increment 2 - Runtime Bootstrap
 
@@ -57,13 +57,13 @@ Primary files:
 
 Implemented:
 
-1. Singleton Firebase app init (`getApp/getApps/initializeApp`).
-2. Shared exports: `firebaseApp`, `auth`, `db`.
-3. `ensureAnonymousUser()` helper for low-friction anonymous auth.
+1. Singleton Firebase app init.
+2. Shared runtime exports (`firebaseApp`, `auth`, `db`).
+3. `ensureAnonymousUser()` helper.
 
 Outcome:
 
-- Reusable runtime Firebase baseline without duplicate init behavior.
+- Reliable Firebase runtime baseline with no duplicate-init behavior.
 
 ## 3) Increment 3 - Auth Wiring
 
@@ -75,51 +75,83 @@ Primary files:
 
 Implemented:
 
-1. `AuthBootstrap` triggers `ensureAnonymousUser()` on app mount.
-2. Root layout mounts `AuthBootstrap`, so auth bootstraps on every page load.
-3. `useAuthUser()` subscribes to `onAuthStateChanged` and returns `{ user, loading }`.
+1. App-root anonymous auth bootstrap on mount.
+2. Reusable auth-state hook returning `{ user, loading }`.
 
 Outcome:
 
-- Auth startup is wired globally and ready for future room/game pages.
+- Global auth startup is wired and stable for future game pages.
 
-## 4) Lesson captured - Next.js env vars
+## 4) Increment 4 - Types + Prompt Bank
 
-Primary file:
+Primary files:
 
-- `docs/lessons/nextjs-env-vars.md`
+- `src/lib/types.ts`
+- `src/features/guess-the-liar/prompts.ts`
 
-Key learning:
+Implemented:
 
-1. In client-reachable code, dynamic access (`process.env[key]`) can fail bundler inlining.
-2. Use static `process.env.NEXT_PUBLIC_*` references for client-side env usage.
-3. If env errors persist, check shell-exported empty vars overriding `.env.local`.
+1. Canonical room/player/round/answer/vote types.
+2. Round-scoped ID support and reveal-phase-compatible fields.
+3. Starter prompt bank for Guess-the-Liar.
+
+Outcome:
+
+- Shared data contracts now exist for upcoming Functions + room flow work.
+
+## 5) Increment 5 - Firebase Local Emulator Foundation
+
+Primary files:
+
+- `firebase.json`
+- `.firebaserc`
+- `firestore.rules`
+- `functions/package.json`
+- `functions/index.js`
+- `functions/package-lock.json`
+- `src/lib/firebase/client.ts`
+- `.env.local` (local env)
+
+Implemented:
+
+1. Fixed Functions runtime detection by adding valid Functions package metadata + entrypoint.
+2. Added explicit Firestore rules file mapping.
+3. Switched Firebase CLI project target to `demo-plottwist` for local-only mode.
+4. Updated local Firebase env values to match demo project.
+5. Added automatic Auth/Firestore emulator connection in client runtime for dev/demo mode.
+6. Installed/updated `firebase-functions` and `firebase-admin` in `functions/`.
+
+Outcome:
+
+- `firebase emulators:start --only auth,firestore,functions` now starts with Functions definitions loaded.
+- App traffic can be kept on local emulators instead of real Firebase.
 
 ---
 
 ## End-to-End Execution Order (Current State)
 
-1. `layout.tsx` renders app shell.
-2. `AuthBootstrap` mounts and calls `ensureAnonymousUser()`.
-3. `ensureAnonymousUser()` uses shared `auth` from Firebase client singleton.
-4. Firebase client singleton pulls validated config from `getFirebaseWebConfig()`.
-5. `useAuthUser()` listeners receive auth updates and expose `{ user, loading }`.
+1. `layout.tsx` renders app shell and mounts auth bootstrap.
+2. Firebase singleton reads validated web config.
+3. In dev/demo mode, client connects to local Auth + Firestore emulators.
+4. Anonymous user bootstrap runs.
+5. `useAuthUser()` listeners receive and expose auth state.
+6. Shared game types/prompt bank are available for upcoming room/game logic.
 
 ---
 
-## Manual Verification Checklist
+## Current Verification Checklist
 
 1. `npm run lint` -> expect no errors.
-2. `npm ls firebase` -> expect installed dependency.
-3. `npm run dev` -> app starts without Firebase config crash.
-4. Firebase Console -> Authentication -> Users -> anonymous user appears after first page load.
-5. Refresh app -> no duplicate-init/auth bootstrap crash.
+2. `cd functions && npm install` -> ensure Functions deps exist.
+3. `firebase emulators:start --only auth,firestore,functions` -> expect Functions definitions to load.
+4. `npm run dev` -> app boots without Firebase config/runtime errors.
+5. Emulator UI (`http://127.0.0.1:4000`) shows local auth/firestore activity.
 
 ---
 
 ## Open TODOs
 
-1. Increment 4: add canonical game types in `src/lib/types.ts`.
-2. Increment 4: add prompt bank in `src/features/guess-the-liar/prompts.ts`.
-3. Keep architecture + roadmap synced with actual code and incremental docs.
-4. Decide whether to merge architecture/roadmap pending edits as a separate docs-only commit.
+1. Increment 6: implement `createRoom` + `joinRoom` callable Functions.
+2. Increment 6: wire create/join pages to callable backend.
+3. Replace permissive local `firestore.rules` with scoped rules as room data model lands.
+4. Keep architecture/roadmap/increment docs synchronized with each merge.

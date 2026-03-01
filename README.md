@@ -20,6 +20,57 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Local Firebase Emulator Mode (Recommended)
+
+This project is configured for local-only Firebase development using the demo project ID `demo-plottwist`.
+
+1. Install root dependencies:
+
+```bash
+npm install
+```
+
+2. Install Functions dependencies:
+
+```bash
+cd functions
+npm install
+cd ..
+```
+
+3. Start emulators:
+
+```bash
+firebase emulators:start --only auth,firestore,functions
+```
+
+4. In a second terminal, start the app:
+
+```bash
+npm run dev
+```
+
+5. Open Emulator UI:
+
+```text
+http://127.0.0.1:4000
+```
+
+### Troubleshooting
+
+If ports are already taken, stop stale emulator processes and restart:
+
+```bash
+pkill -f "firebase emulators:start"
+pkill -f "cloud-firestore-emulator"
+```
+
+If Functions fails with `Cannot find module 'firebase-functions'`, run:
+
+```bash
+cd functions && npm install
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
