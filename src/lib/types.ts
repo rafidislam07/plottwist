@@ -13,8 +13,6 @@ export type Phase =
 
 export type RoomSettings = {
   maxPlayers: number;
-  answerTimeLimitSec: number;
-  votingTimeLimitSec: number;
   totalRounds: number;
 };
 

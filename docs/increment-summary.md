@@ -2,13 +2,14 @@
 
 ## TL;DR
 
-We now have five completed increments in sequence:
+We now have six completed increments in sequence:
 
 1. Increment 1: fail-fast Firebase env config.
 2. Increment 2: Firebase runtime bootstrap (`app`, `auth`, `db`) + anonymous auth helper.
 3. Increment 3: app-level auth wiring (`AuthBootstrap`) + `useAuthUser()` hook.
 4. Increment 4: canonical game data types + initial prompt bank.
 5. Increment 5: local-only Firebase emulator foundation (Auth/Firestore/Functions) with client emulator routing.
+6. Increment 6: create/join full-stack flow with callable Functions, route wiring, and local rules alignment.
 
 ---
 
@@ -21,6 +22,7 @@ Think of building a party-game clubhouse:
 3. Increment 3 put a receptionist at the entrance so every visitor gets a guest badge.
 4. Increment 4 wrote the official rulebook and prepared question cards.
 5. Increment 5 built a full practice city (`demo-plottwist`) so all testing stays local and never accidentally hits the real city.
+6. Increment 6 added two working front doors (create and join) that talk to a backend doorman and send players into a room page.
 
 ---
 
@@ -126,6 +128,36 @@ Outcome:
 - `firebase emulators:start --only auth,firestore,functions` now starts with Functions definitions loaded.
 - App traffic can be kept on local emulators instead of real Firebase.
 
+## 6) Increment 6 - Create + Join (Full Stack)
+
+Primary files:
+
+- `functions/index.js`
+- `firestore.rules`
+- `src/lib/firebase/client.ts`
+- `src/app/games/guess-the-liar/create/page.tsx`
+- `src/app/games/guess-the-liar/join/page.tsx`
+- `src/app/games/guess-the-liar/room/[roomCode]/page.tsx`
+- `src/app/page.tsx`
+
+Implemented:
+
+1. Callable `createRoom` and `joinRoom` backend handlers.
+2. Input/auth/phase/capacity validation + transaction-based writes.
+3. Idempotent duplicate join behavior.
+4. Create and join pages wired to callable Functions with user-friendly error messages.
+5. Dynamic room route added to receive post-submit redirects.
+6. Home page navigation added for direct create/join entry.
+7. Timer settings were removed from room config (`answerTimeLimitSec`, `votingTimeLimitSec`).
+8. No timer-based phase transitions introduced.
+
+Outcome:
+
+- End-to-end create/join flow now works against local emulators.
+- On success, users land on `/games/guess-the-liar/room/{roomCode}`.
+- Room + player docs are written via Functions (client writes blocked by rules for those paths).
+- Room settings are now timer-free and manual progression is enforced by design.
+
 ---
 
 ## End-to-End Execution Order (Current State)
@@ -135,7 +167,9 @@ Outcome:
 3. In dev/demo mode, client connects to local Auth + Firestore emulators.
 4. Anonymous user bootstrap runs.
 5. `useAuthUser()` listeners receive and expose auth state.
-6. Shared game types/prompt bank are available for upcoming room/game logic.
+6. User submits create/join forms which call callable Functions.
+7. Functions write room/player docs and return room code.
+8. Client redirects to room route shell for that code.
 
 ---
 
@@ -145,13 +179,14 @@ Outcome:
 2. `cd functions && npm install` -> ensure Functions deps exist.
 3. `firebase emulators:start --only auth,firestore,functions` -> expect Functions definitions to load.
 4. `npm run dev` -> app boots without Firebase config/runtime errors.
-5. Emulator UI (`http://127.0.0.1:4000`) shows local auth/firestore activity.
+5. From `/`, run create and join flows.
+6. Emulator UI (`http://127.0.0.1:4000`) shows local auth/firestore activity and room/player docs.
 
 ---
 
 ## Open TODOs
 
-1. Increment 6: implement `createRoom` + `joinRoom` callable Functions.
-2. Increment 6: wire create/join pages to callable backend.
-3. Replace permissive local `firestore.rules` with scoped rules as room data model lands.
+1. Increment 7: add room/player real-time subscriptions + lobby UI state.
+2. Keep phase progression manual/host-driven (no timers).
+3. Continue tightening rules for new subcollections as increments add data paths.
 4. Keep architecture/roadmap/increment docs synchronized with each merge.

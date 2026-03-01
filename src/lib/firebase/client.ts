@@ -3,6 +3,7 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
 
 import { getFirebaseWebConfig } from "./config";
 
@@ -12,6 +13,7 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const firebaseApp = app;
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const functionsClient = getFunctions(app);
 
 const shouldUseEmulators =
   process.env.NODE_ENV !== "production" &&
@@ -26,11 +28,15 @@ if (shouldUseEmulators && !globalForFirebase.__plottwistFirebaseEmulatorsConnect
   const host = process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST ?? "127.0.0.1";
   const authPort = Number(process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT ?? "9099");
   const firestorePort = Number(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT ?? "8080");
+  const functionsPort = Number(
+    process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? "5001"
+  );
 
   connectAuthEmulator(auth, `http://${host}:${authPort}`, {
     disableWarnings: true,
   });
   connectFirestoreEmulator(db, host, firestorePort);
+  connectFunctionsEmulator(functionsClient, host, functionsPort);
 
   globalForFirebase.__plottwistFirebaseEmulatorsConnected = true;
 }

@@ -128,14 +128,20 @@
 
 ---
 
-## ⬜ Increment 6 — Create + Join (Full Stack)
+## ✅ Increment 6 — Create + Join (Full Stack)
 
 **Branch:** `wip/inc6-create-join`
 
-**Files changed (≤ 3 client + functions):**
-- `functions/src/index.ts` — `createRoom` + `joinRoom` Cloud Functions
+**Files changed (actual):**
+- `functions/index.js` — `createRoom` + `joinRoom` callable Functions
+- `firestore.rules`
+- `src/lib/firebase/client.ts` (Functions emulator wiring/export)
 - `src/app/games/guess-the-liar/create/page.tsx`
 - `src/app/games/guess-the-liar/join/page.tsx`
+- `src/app/games/guess-the-liar/room/[roomCode]/page.tsx` (redirect target shell)
+- `src/app/page.tsx` (create/join entry navigation)
+
+**Scope note:** Delivered in multiple ≤3-file batches. Total increment file count exceeds 3 due phased implementation and debugging.
 
 **Security rules shipped with this increment:**
 - `rooms/{roomCode}` — readable by any authenticated user, writable only by Cloud Functions
@@ -143,9 +149,14 @@
 
 **What it does:**
 - `createRoom` Cloud Function: generates unique room code, writes initial room doc, adds host to players subcollection, returns room code
-- `joinRoom` Cloud Function: validates room exists + has capacity + player not already joined, adds player doc
-- Create page: name input → calls `createRoom` → redirects to `/room/{code}`
-- Join page: name + room code input → calls `joinRoom` → redirects to `/room/{code}`
+- `joinRoom` Cloud Function: validates room exists + has capacity + phase=lobby + player not already joined, adds player doc
+- Duplicate join is idempotent success
+- Create page: name input → calls `createRoom` → redirects to `/games/guess-the-liar/room/{code}`
+- Join page: name + room code input → calls `joinRoom` → redirects to `/games/guess-the-liar/room/{code}`
+- Room route shell exists so redirects do not 404
+- Home page links directly to create/join routes
+- No timer-based transitions were introduced
+- Room settings timer fields were removed (`answerTimeLimitSec`, `votingTimeLimitSec`)
 
 **Testable outcome:** Create a room, share the code, join it from another browser tab. Both players appear in Firestore.
 
