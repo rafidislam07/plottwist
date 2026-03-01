@@ -114,7 +114,7 @@
 **Scope note:** This increment exceeded the normal 3-file rule because emulator boot failures required iterative infra debugging and local/runtime alignment fixes.
 
 **What it does:**
-- Runs `firebase init` (Firestore, Functions with TypeScript, Emulators)
+- Runs `firebase init` (Firestore, Functions, Emulators)
 - Configures emulators for Auth, Firestore, Functions
 - Fixes Functions runtime detection (`Could not detect runtime`) by adding Functions package metadata + entrypoint
 - Adds explicit Firestore emulator rules mapping
@@ -187,7 +187,7 @@
 **Branch:** `wip/inc8-answering`
 
 **Files changed (≤ 3):**
-- `functions/src/index.ts` — add `startRound` Cloud Function
+- `functions/index.js` — add `startRound` Cloud Function
 - `src/features/guess-the-liar/components/RoomScreen.tsx` — add answering phase UI
 - Firestore security rules — add `prompts/{playerId}` + `answers/{docId}` rules
 
@@ -211,7 +211,7 @@
 **Branch:** `wip/inc9-round-loop`
 
 **Files changed (≤ 3):**
-- `functions/src/index.ts` — add `advancePhase` + `scoreRound` Cloud Functions
+- `functions/index.js` — add `advancePhase` + `scoreRound` Cloud Functions
 - `src/features/guess-the-liar/components/RoomScreen.tsx` — add revealed / voting / scoring phase UIs
 - Firestore security rules — add `votes/{docId}` rules
 
@@ -260,3 +260,4 @@ These are deferred intentionally — they add complexity without unblocking the 
 | Analytics / observability | Useful once shipped, not a blocker |
 | `imposter` game mode | Second game mode; engine is designed to be extensible |
 | Firestore emulator CI integration | Good practice, adds setup overhead |
+| Cloud Functions JS -> TypeScript migration | Useful for backend type safety; deferred until core game loop stabilizes |

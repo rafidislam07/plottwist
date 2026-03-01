@@ -69,7 +69,7 @@ The platform is designed to:
 |---|---|
 | **Next.js (App Router)** | File-system routing, SSR/SSG, API routes |
 | **React** | Component model, hooks, concurrent features |
-| **TypeScript** | Static type checking across the entire codebase |
+| **TypeScript** | Static type checking for frontend and shared domain types |
 | **Tailwind CSS** | Utility-first styling, design tokens |
 
 > Exact versions are pinned in `package.json` — this doc references tools, not version numbers.
@@ -81,6 +81,8 @@ The platform is designed to:
 | **Firebase Anonymous Auth** | Lightweight player identity without sign-up friction |
 | **Cloud Firestore** | Real-time document database — single source of truth for room state |
 | **Cloud Functions (v2)** | Server-side game logic: phase transitions, prompt assignment, scoring |
+
+> **Current implementation note:** Functions runtime currently uses JavaScript entrypoint `functions/index.js`. A clean migration to TypeScript is planned after the core loop is stable.
 
 ## Infrastructure
 
@@ -902,8 +904,6 @@ export const imposterConfig: GameConfig = {
   phases: ["lobby", "prompting", "discussing", "voting", "scoring"],
   defaultSettings: {
     maxPlayers: 12,
-    discussionTimeSec: 120,
-    votingTimeLimitSec: 30,
     totalRounds: 3,
   },
 };
@@ -923,7 +923,7 @@ The following are game-agnostic and require no changes:
 
 - Room creation / joining
 - Real-time listeners + `RoomProvider`
-- Countdown timer
+- Manual host-driven phase progression
 - UI primitives (Card, Button, etc.)
 - Auth flow
 - Deployment pipeline
@@ -966,7 +966,7 @@ This keeps the shared engine generic while allowing game-specific data.
 |---|---|---|
 | Cloud Functions | Firebase Emulator + Vitest | Full function execution against emulated Firestore |
 | Security rules | `@firebase/rules-unit-testing` | Verify that unauthorized reads/writes are rejected |
-| Deadline enforcement | Firebase Emulator | Verify scheduled function transitions phases correctly |
+| Manual phase progression | Firebase Emulator | Verify host-controlled transitions and no timer-triggered transitions |
 
 ## End-to-End Tests
 

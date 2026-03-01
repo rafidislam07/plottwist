@@ -189,4 +189,5 @@ Outcome:
 1. Increment 7: add room/player real-time subscriptions + lobby UI state.
 2. Keep phase progression manual/host-driven (no timers).
 3. Continue tightening rules for new subcollections as increments add data paths.
-4. Keep architecture/roadmap/increment docs synchronized with each merge.
+4. Plan a dedicated Cloud Functions JavaScript -> TypeScript migration increment after core loop stability.
+5. Keep architecture/roadmap/increment docs synchronized with each merge.
