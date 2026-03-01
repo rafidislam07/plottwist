@@ -162,7 +162,7 @@
 
 ---
 
-## ⬜ Increment 7 — Room Real-Time + Lobby UI
+## ✅ Increment 7 — Room Real-Time + Lobby UI
 
 **Branch:** `wip/inc7-lobby`
 
@@ -177,6 +177,8 @@
 - Lobby UI: shows connected players, host badge, room code with copy button
 - Host sees "Start Round" button (disabled until ≥ 3 players)
 - Non-hosts see "Waiting for host..."
+- Join flow explains same-device idempotent rejoin with explicit UI banner
+- Join page shows identity-preparation status to clarify initial latency
 
 **Testable outcome:** Open the room URL in two tabs. Player list updates in real time as players join. Actions are correctly gated by host status.
 

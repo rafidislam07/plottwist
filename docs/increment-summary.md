@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-We now have six completed increments in sequence:
+We now have seven completed increments in sequence:
 
 1. Increment 1: fail-fast Firebase env config.
 2. Increment 2: Firebase runtime bootstrap (`app`, `auth`, `db`) + anonymous auth helper.
@@ -10,6 +10,7 @@ We now have six completed increments in sequence:
 4. Increment 4: canonical game data types + initial prompt bank.
 5. Increment 5: local-only Firebase emulator foundation (Auth/Firestore/Functions) with client emulator routing.
 6. Increment 6: create/join full-stack flow with callable Functions, route wiring, and local rules alignment.
+7. Increment 7: real-time room lobby with live player updates and clearer join/rejoin UX.
 
 ---
 
@@ -23,6 +24,7 @@ Think of building a party-game clubhouse:
 4. Increment 4 wrote the official rulebook and prepared question cards.
 5. Increment 5 built a full practice city (`demo-plottwist`) so all testing stays local and never accidentally hits the real city.
 6. Increment 6 added two working front doors (create and join) that talk to a backend doorman and send players into a room page.
+7. Increment 7 turned the room into a live lobby scoreboard that updates instantly when players join.
 
 ---
 
@@ -158,6 +160,29 @@ Outcome:
 - Room + player docs are written via Functions (client writes blocked by rules for those paths).
 - Room settings are now timer-free and manual progression is enforced by design.
 
+## 7) Increment 7 - Room Real-Time + Lobby UI
+
+Primary files:
+
+- `src/features/guess-the-liar/room-store.ts`
+- `src/features/guess-the-liar/components/RoomScreen.tsx`
+- `src/app/games/guess-the-liar/room/[roomCode]/page.tsx`
+- `src/app/games/guess-the-liar/join/page.tsx`
+
+Implemented:
+
+1. Live room and players subscriptions using Firestore `onSnapshot`.
+2. Lobby UI rendering with player list, host badge, and host-only start placeholder.
+3. Room code copy UX with visual feedback.
+4. Same-device idempotent rejoin indication (`?rejoined=1`) + explanatory banner.
+5. Join-page identity-preparation status for better perceived latency.
+
+Outcome:
+
+- Room pages now update in real time as users join.
+- Rejoin behavior is explicit and less confusing during local testing.
+- Increment 7 completed without introducing timers.
+
 ---
 
 ## End-to-End Execution Order (Current State)
@@ -170,6 +195,7 @@ Outcome:
 6. User submits create/join forms which call callable Functions.
 7. Functions write room/player docs and return room code.
 8. Client redirects to room route shell for that code.
+9. Room route subscribes to room/player collections and renders live lobby state.
 
 ---
 
@@ -186,7 +212,7 @@ Outcome:
 
 ## Open TODOs
 
-1. Increment 7: add room/player real-time subscriptions + lobby UI state.
+1. Increment 8: implement `startRound` and answering phase UI/rules.
 2. Keep phase progression manual/host-driven (no timers).
 3. Continue tightening rules for new subcollections as increments add data paths.
 4. Plan a dedicated Cloud Functions JavaScript -> TypeScript migration increment after core loop stability.

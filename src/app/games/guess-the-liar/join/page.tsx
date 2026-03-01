@@ -48,6 +48,7 @@ export default function JoinRoomPage() {
   const canSubmit = useMemo(() => {
     return !loading && !!user && !isSubmitting;
   }, [isSubmitting, loading, user]);
+  const waitingForAuth = loading || !user;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,7 +89,10 @@ export default function JoinRoomPage() {
         throw new Error("missing-room-code");
       }
 
-      router.push(`/games/guess-the-liar/room/${result.data.roomCode}`);
+      const alreadyJoinedParam = result.data.alreadyJoined ? "?rejoined=1" : "";
+      router.push(
+        `/games/guess-the-liar/room/${result.data.roomCode}${alreadyJoinedParam}`
+      );
     } catch (submitError) {
       setError(mapFunctionsError(submitError));
     } finally {
@@ -103,6 +107,11 @@ export default function JoinRoomPage() {
         <p className="mt-2 text-sm text-zinc-600">
           Enter your name and room code to join.
         </p>
+        {waitingForAuth ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Preparing your guest identity. Join becomes available in a moment.
+          </p>
+        ) : null}
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
@@ -146,7 +155,11 @@ export default function JoinRoomPage() {
             disabled={!canSubmit}
             className="w-full rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? "Joining..." : "Join room"}
+            {isSubmitting
+              ? "Joining..."
+              : waitingForAuth
+                ? "Preparing identity..."
+                : "Join room"}
           </button>
         </form>
       </section>
